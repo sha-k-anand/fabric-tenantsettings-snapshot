@@ -1,3 +1,14 @@
+Fabric Tenant settings
+
+
+
+
+https://learn.microsoft.com/en-us/fabric/admin/about-tenant-settings
+https://learn.microsoft.com/en-us/fabric/admin/tenant-settings-index
+https://learn.microsoft.com/en-us/fabric/admin/about-tenant-settings#new-tenant-settings
+
+
+
 ## Step 1. Create  a workspace
     Create a new workspace in fabric
 ## Step 2. Create  a Lakehouse
@@ -5,18 +16,48 @@
   
 ## Step 3. Create a new notebook
 
+Attach the lakhouse
+Copy paste each of the  below codeblocks into new cell in the notebook
+
 
 <details>
 
   <summary>View notebook code</summary>
 
+
+For cell 1, use the below code block if API call needs to be made under the context of the current user
+```
+from notebookutils.mssparkutils.credentials import getToken
+from datetime import datetime
+import requests
+token = getToken("https://analysis.windows.net/powerbi/api")
+```
+
+For cell 1, use the below code block if API call needs to be made under the context of service principal
 ```
 from notebookutils.mssparkutils.credentials import getToken
 from datetime import datetime
 import requests
 
+client_id = ""
+client_secret = ""
+tenant_id = ""
+
+token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+headers = {"Content-Type": "application/x-www-form-urlencoded"}
+data = {
+    "grant_type": "client_credentials",
+    "client_id": client_id,
+    "client_secret": client_secret,
+    "scope": "https://analysis.windows.net/powerbi/api/.default",
+}
+
+response = requests.post(token_url, headers=headers, data=data)
+token = response.json()["access_token"]
+```
+
+```
 base_url = "https://api.fabric.microsoft.com/v1/admin"
-token = getToken("https://analysis.windows.net/powerbi/api")
 headers = {"Authorization": f"Bearer {token}"}
 folder_path = "Files/tenantsettings/year=" + datetime.now().strftime("%Y")  + "/month=" +  datetime.now().strftime("%Y%m")  
 file_path =  "/lakehouse/default/"  + folder_path + "/" + datetime.now().strftime("%Y%m%d") + ".json"
@@ -25,7 +66,9 @@ mssparkutils.fs.mkdirs(folder_path)
 response = requests.get(f"{base_url}/tenantsettings", headers=headers)
 with open(file_path, "w") as file:
     file.write(response.text)
+
 ```
+
 
 ```
 %%sql
@@ -97,7 +140,9 @@ CREATE VIEW tenantsettings_snapshot_step05 AS
 SELECT 
     Current_Date() as LastRunDateUTC,
     SUM(CASE WHEN derived_ChangedFlag = 'Changed' THEN 1 ELSE 0 END)  ChangedCount,
-    SUM(CASE WHEN derived_NewFlag     = 'New'     THEN 1 ELSE 0 END)  NewCount
+    SUM(CASE WHEN derived_NewFlag     = 'New'     THEN 1 ELSE 0 END)  NewCount,
+    SUM(CASE WHEN derived_ChangedFlag = 'Changed' THEN 1 ELSE 0 END)  + 
+    SUM(CASE WHEN derived_NewFlag     = 'New'     THEN 1 ELSE 0 END)  NotificationCount
 FROM 
     tenantsettings_snapshot_step04 
 WHERE
@@ -124,3 +169,65 @@ DROP VIEW  IF EXISTS tenantsettings_snapshot_step04;
 
 </details>
 
+
+## Step 4. Create a pipeline to run the notebook and schedule it to run daily
+
+```
+@not(equals(activity('CheckSummaryTable').output.firstRow.NotificationCount, 0))
+```
+
+
+
+
+### FabricTenantSettings_Snapshot
+
+
+|Table Name|Column Name| Column Value| Remarks|
+|--|--|--|--|
+|FabricTenantSettings_Snapshot|derived_previousvalue_properties|Previous values|
+|FabricTenantSettings_Snapshot|derived_setting_first_available_date|New setting was added on|
+|FabricTenantSettings_Snapshot|derived_ChangedFlag| = 'Changed '|Indicates if the setting was changed - compared to the previous snapshot|
+|FabricTenantSettings_Snapshot|derived_NewFlag| = 'New' | Indicates if the setting is new|
+|FabricTenantSettings_Snapshot|derived_RowStatus| = 'Current' All the rows from the latest snapshot will be marked as 'Current'|
+
+### FabricTenantSettings_Summary
+
+
+Summar of the last snapshot run - This table will always have only one row and it can be used for monitoring and sending automated alerts
+
+|Table Name|Column Name| Column Value| Remarks|
+|--|--|--|--|
+|FabricTenantSettings_Summary|LastRunDateUTC|Date of the last snapshot run|
+|FabricTenantSettings_Summary|ChangedCount|Count of settings that were changed|
+|FabricTenantSettings_Summary|NewCount|Count of settings that were newly added|
+|FabricTenantSettings_Summary|NotificationCount| Sum of changed  + new|
+
+
+## Step 4. Sample SQL queries to run on the SQL endpoint of the lakehouse
+
+
+
+Query to get  summary of the new/changed count
+```
+%%sql
+SELECT
+	SnapshotDate,
+	SUM(CASE WHEN derived_ChangedFlag = 'Changed' THEN 1 ELSE NULL END) as ChangedCount,
+	SUM(CASE WHEN derived_NewFlag = 'New' THEN 1 ELSE NULL END) as NewCount,
+	COUNT(*) as SettingsCount
+FROM
+	[dbo].[FabricTenantSettings_Snapshot]
+GROUP BY
+	SnapshotDate
+ORDER BY 1
+```
+
+Query to get settings from the last snapshot
+```
+SELECT * FROM  [dbo].[FabricTenantSettings_Snapshot] WHERE derived_RowStatus = 'Current'
+```
+
+Query to get all the changed settings from all snapshots
+```
+SELECT * FROM  [dbo].[FabricTenantSettings_Snapshot] WHERE derived_RowStatus = 'Changed'
+```
