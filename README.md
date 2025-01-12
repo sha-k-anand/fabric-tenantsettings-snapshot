@@ -1,13 +1,38 @@
-Fabric Tenant settings
+# Fabric Tenant settings
 
 
+Tenant settings govern the functionality and features available within your organization’s Microsoft Fabric environment.
+Any inadvertent changes to these settings can have a significant impact on your organization's security, compliance, and overall workflow.
+Also, It is crucial to stay informed about newly released tenant settings and review their default configurations (enabled/disabled) and ensure these settings align with your organization policies and avoid unexpected disruptions.
 
 
-https://learn.microsoft.com/en-us/fabric/admin/about-tenant-settings
-https://learn.microsoft.com/en-us/fabric/admin/tenant-settings-index
-https://learn.microsoft.com/en-us/fabric/admin/about-tenant-settings#new-tenant-settings
+More details on tenant settings here
+    https://learn.microsoft.com/en-us/fabric/admin/about-tenant-settings
+
+    https://learn.microsoft.com/en-us/fabric/admin/tenant-settings-index
+
+    https://learn.microsoft.com/en-us/fabric/admin/about-tenant-settings#new-tenant-settings
+
+    https://learn.microsoft.com/en-us/rest/api/fabric/admin/tenants/list-tenant-settings?tabs=HTTP
+    
+    https://purview.microsoft.com/audit/auditsearch
+
+Here is an automated approach that you can use to snapshot the tenant settings on a daily basis and use it for tracking changes or new settings.
+This process makes a call to the Admin APIs to get the list of tenant settings and saves it to a .JSON file into folder in lakehouse.
+Notebook code reads all these daily JSON files and parses them and loads into a lakehouse tables.
+
+It produces two tables
+1. FabricTenantSettings_Snapshot  - Includes daily snapshot of all the tenant settings 
+2. FabricTenantSettings_Summary - One row table, that indicates if a new settings/changes were made in the last day.  This table can be  used to send automated alerts.
 
 
+## Prerequisites
+* Access to fabric features (Capacity,Fabric is enabled at the tenant or capacity level)
+* Basic knowledge of Fabric features such as lakehouse,notebooks and pipelines
+* Authentication to Admin API options
+    * Run the notebook/Pipeline as Fabric Admin (Fabric Admins needs to create the below notebook/pipelines)
+    * or
+    * Use Service Principal (Anyone can create the below notebooks,pipelines)
 
 ## Step 1. Create  a workspace
     Create a new workspace in fabric
@@ -16,8 +41,9 @@ https://learn.microsoft.com/en-us/fabric/admin/about-tenant-settings#new-tenant-
   
 ## Step 3. Create a new notebook
 
-Attach the lakhouse
-Copy paste each of the  below codeblocks into new cell in the notebook
+1. Create a new Notebook
+2. Attach the lakehouse
+3. Copy paste each of the  below codeblocks into new cell in the notebook
 
 
 <details>
@@ -172,6 +198,11 @@ DROP VIEW  IF EXISTS tenantsettings_snapshot_step04;
 
 ## Step 4. Create a pipeline to run the notebook and schedule it to run daily
 
+1. Add a Notebook activity
+2. Add Lookup activity to read contents from FabricTenantSettings_Summary 
+![Link](/screenshots/pipeline%20lookup%20activity.png)
+3. Add If condition that checks the lookup values and send Teams channel alerts
+![Link](/screenshots/teams%20notification.png)
 ```
 @not(equals(activity('CheckSummaryTable').output.firstRow.NotificationCount, 0))
 ```
@@ -227,7 +258,7 @@ Query to get settings from the last snapshot
 SELECT * FROM  [dbo].[FabricTenantSettings_Snapshot] WHERE derived_RowStatus = 'Current'
 ```
 
-Query to get all the changed settings from all snapshots
+Query to get all the setting changes from all snapshots
 ```
 SELECT * FROM  [dbo].[FabricTenantSettings_Snapshot] WHERE derived_RowStatus = 'Changed'
 ```
