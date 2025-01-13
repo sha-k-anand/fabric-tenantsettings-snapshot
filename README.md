@@ -202,10 +202,11 @@ DROP VIEW  IF EXISTS tenantsettings_snapshot_step04;
 2. Add Lookup activity to read contents from FabricTenantSettings_Summary 
 ![Link](/screenshots/pipeline%20lookup%20activity.png)
 3. Add If condition that checks the lookup values and send Teams channel alerts
-4. Schdule the pipeline to run daily
 ```
 @not(equals(activity('CheckSummaryTable').output.firstRow.NotificationCount, 0))
 ```
+
+4. Schdule the pipeline to run daily
 
 ![Link](/screenshots/pipeline.png)
 ![Link](/screenshots/teams%20notification.png)
@@ -277,3 +278,6 @@ SELECT * FROM  [dbo].[FabricTenantSettings_Snapshot] WHERE derived_RowStatus = '
 
 ![Link](/screenshots/lakehouse%20json%20file.jpg)
 ![Link](/screenshots/lakehouse%20snapshot%20table.png)
+
+## Screenshot from Teams Notification
+![Link](/screenshots/teams%20notification.jpg)
