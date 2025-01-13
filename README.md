@@ -202,13 +202,17 @@ DROP VIEW  IF EXISTS tenantsettings_snapshot_step04;
 2. Add Lookup activity to read contents from FabricTenantSettings_Summary 
 ![Link](/screenshots/pipeline%20lookup%20activity.png)
 3. Add If condition that checks the lookup values and send Teams channel alerts
-![Link](/screenshots/teams%20notification.png)
+4. Schdule the pipeline to run daily
 ```
 @not(equals(activity('CheckSummaryTable').output.firstRow.NotificationCount, 0))
 ```
 
+![Link](/screenshots/pipeline.png)
+![Link](/screenshots/teams%20notification.png)
 
 
+
+## Information on the 2 tables produced by the notebook
 
 ### FabricTenantSettings_Snapshot
 
@@ -234,9 +238,12 @@ Summar of the last snapshot run - This table will always have only one row and i
 |FabricTenantSettings_Summary|NotificationCount| Sum of changed  + new|
 
 
-## Step 4. Sample SQL queries to run on the SQL endpoint of the lakehouse
+## Sample SQL queries to run on the SQL endpoint of the lakehouse
 
 
+1. Navigate to the lakehouse
+2. Switch to the SQL analytics endpoint view from the top right right
+3. Click new "Query" and try the below queries
 
 Query to get  summary of the new/changed count
 ```
@@ -262,3 +269,11 @@ Query to get all the setting changes from all snapshots
 ```
 SELECT * FROM  [dbo].[FabricTenantSettings_Snapshot] WHERE derived_RowStatus = 'Changed'
 ```
+
+
+## View of the lakehouse with JSON files
+
+![Link](/screenshots/lakehouse%20daily%20snapshot%20json%20files.jpg)
+
+![Link](/screenshots/lakehouse%20json%20file.jpg)
+![Link](/screenshots/lakehouse%20snapshot%20table.png)
