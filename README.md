@@ -27,7 +27,7 @@ It produces two tables
 
 
 ## Prerequisites
-* Access to fabric features (Capacity,Fabric is enabled at the tenant or capacity level)
+* Access to fabric features (Fabric Capacity,Fabric is enabled at the tenant or capacity level. If an existing capacity is not available, a small F2 capacity should be enough for this to run)
 * Basic knowledge of Fabric features such as lakehouse,notebooks and pipelines
 * Authentication to Admin API options
     * Run the notebook/Pipeline as Fabric Admin (Fabric Admins needs to create the below notebook/pipelines)
@@ -199,9 +199,9 @@ DROP VIEW  IF EXISTS tenantsettings_snapshot_step04;
 ## Step 4. Create a pipeline to run the notebook and schedule it to run daily
 
 1. Add a Notebook activity
-2. Add Lookup activity to read contents from FabricTenantSettings_Summary 
+2. Add Lookup activity to read contents from FabricTenantSettings_Summary. Make sure to name it as 'CheckSummaryTable'
 ![Link](/screenshots/pipeline%20lookup%20activity.png)
-3. Add If condition that checks the lookup values and send Teams channel alerts
+3. Add the below If condition that checks the lookup values and sends Teams channel alerts
 ```
 @not(equals(activity('CheckSummaryTable').output.firstRow.NotificationCount, 0))
 ```
