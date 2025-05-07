@@ -120,7 +120,9 @@ CREATE VIEW  tenantsettings_snapshot_step02 as
 SELECT 
     REPLACE(RIGHT(input_file_name(),13),'.json','') as SnapshotDateYYYYMMDD,
     TO_DATE(REPLACE(RIGHT(input_file_name(), 13), '.json', ''), 'yyyyMMdd') as SnapshotDate,
-    c1 as rowid,c2.tenantSettingGroup,c2.settingName,c2.title,c2.enabled,c2.canSpecifySecurityGroups,c2.properties as ANY_properties ,CAST(c2.properties AS STRING) as properties
+    c1 as rowid,c2.tenantSettingGroup,c2.settingName,c2.title,c2.enabled,c2.canSpecifySecurityGroups,c2.properties as ANY_properties ,CAST(c2.properties AS STRING) as properties,
+    to_json(c2.enabledSecurityGroups) as enabledSecurityGroups
+
 FROM  
     tenantsettings_snapshot_step01 j1
 LATERAL VIEW  
@@ -133,7 +135,7 @@ DROP VIEW IF EXISTS tenantsettings_snapshot_step03;
 CREATE VIEW  tenantsettings_snapshot_step03 as
 SELECT 
    j1.SnapshotDateYYYYMMDD,j1.SnapshotDate,
-    j1.tenantSettingGroup,j1.settingName,
+    j1.tenantSettingGroup,j1.settingName,j1.enabledSecurityGroups,
     c3 as propertyid, c4.name,c4.value,c4.type
 FROM  
     tenantsettings_snapshot_step02 j1
@@ -146,7 +148,7 @@ LATERAL VIEW  posexplode(j1.ANY_properties)  c02  as c3,c4
 DROP VIEW IF EXISTS tenantsettings_snapshot_step04;
 CREATE VIEW tenantsettings_snapshot_step04 AS
 SELECT 
-    SnapshotDateYYYYMMDD,SnapshotDate,rowid,tenantSettingGroup,settingName,title,canSpecifySecurityGroups,
+    SnapshotDateYYYYMMDD,SnapshotDate,rowid,tenantSettingGroup,settingName,enabledSecurityGroups,title,canSpecifySecurityGroups,
     enabled,
     LAG(ts1.enabled)              OVER (PARTITION BY ts1.tenantSettingGroup,ts1.settingName ORDER BY ts1.SnapshotDate) AS derived_previousvalue_enabled,
     properties,
@@ -157,6 +159,7 @@ SELECT
     CASE WHEN SnapshotDateYYYYMMDD = (SELECT MAX(SnapshotDateYYYYMMDD) FROM tenantsettings_snapshot_step02) THEN 'Current' ELSE '' END as derived_RowStatus
 FROM
     tenantsettings_snapshot_step02 ts1
+
 ```
 
 ```
